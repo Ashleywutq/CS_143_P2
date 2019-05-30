@@ -8,6 +8,15 @@ def main(context):
     # YOUR CODE HERE
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
 
+    # Task 1 load data
+    comments = context.read.json("comments-minimal.json.bz2")
+    submissions = context.read.json("submissions.json.bz2")
+
+    comments.write.parquet("comments.parquet")
+    submissions.write.parquet("submissions.parquet")
+
+
+
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
     conf = conf.setMaster("local[*]")
