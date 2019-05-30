@@ -11,11 +11,11 @@ def main(context):
     # Task 1 load data
     comments = context.read.json("comments-minimal.json.bz2")
     submissions = context.read.json("submissions.json.bz2")
-    db = context.read.csv("labeled_data.csv")
+    label = context.read.csv("labeled_data.csv")
 
     comments.write.parquet("comments.parquet")
     submissions.write.parquet("submissions.parquet")
-    db.write.parquet("db.parquet")
+    label.write.parquet("label.parquet")
 
     # Task 2 train classifier
 
