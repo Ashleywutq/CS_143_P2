@@ -17,11 +17,15 @@ def main(context):
     # submissions.write.parquet("submissions.parquet")
     # label.write.parquet("label.parquet")
 
-    comments = context.read.parquet('comments.parquet')
-    submissions = context.read.parquet('submissions.parquet')
-    label = context.read.parquet('label.parquet')
+    comments = context.read.parquet("comments.parquet")
+    submissions = context.read.parquet("submissions.parquet")
+    label = context.read.parquet("label.parquet")
     
-    # Task 2 train classifier
+    # Task 2 functional dependencies join two table
+#    data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
+    label.limit(5).collect()
+    
+
 
 
 
