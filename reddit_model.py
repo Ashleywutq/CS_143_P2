@@ -9,14 +9,18 @@ def main(context):
     # YOU MAY ADD OTHER FUNCTIONS AS NEEDED
 
     # Task 1 load data
-    comments = context.read.json("comments-minimal.json.bz2")
-    submissions = context.read.json("submissions.json.bz2")
-    label = context.read.csv("labeled_data.csv")
+    # comments = context.read.json("comments-minimal.json.bz2")
+    # submissions = context.read.json("submissions.json.bz2")
+    # label = context.read.csv("labeled_data.csv")
 
-    comments.write.parquet("comments.parquet")
-    submissions.write.parquet("submissions.parquet")
-    label.write.parquet("label.parquet")
+    # comments.write.parquet("comments.parquet")
+    # submissions.write.parquet("submissions.parquet")
+    # label.write.parquet("label.parquet")
 
+    comments = context.read.parquet('comments.parquet')
+    submissions = context.read.parquet('submissions.parquet')
+    label = context.read.parquet('label.parquet')
+    
     # Task 2 train classifier
 
 
