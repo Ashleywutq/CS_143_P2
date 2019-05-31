@@ -97,13 +97,31 @@ def main(context):
     # negModel.save("project2/neg.model")
 
     #task 8
-    comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).
-    alias('link_id'), comments.author_flair_text)
+    comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text)
     submissions_truc = submissions.select(submissions.id,  submissions.title)
     data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.id,'inner')
 
     #task 9
-
+    data2 = data2.sample(False, 0.2, None)
+    #remove some data 
+    data2 = data2.filter("body not like '%/s%'").filter("body not like '&gt%'")
+    #Task 4 
+    sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
+    data2 = data2.withColumn('cleaned_body', sanitize(data2.body))
+    #Task 5
+    convert_udf = udf(convert,ArrayType(StringType()))
+    data2 = data2.withColumn('cleaned_body', convert_udf(data2.cleaned_body))
+    #Task 6A
+    cv = CountVectorizer(inputCol="cleaned_body", outputCol="features", binary = True, minDF=10.0)
+    model = cv.fit(data2)
+    data2 = model.transform(data2)
+    #inferece
+    posModel2 = CrossValidator.load("project2/pos.model")
+    negModel2 = CrossValidator.load("project2/neg.model")
+    posResult = posModel.transform(data2)
+    posResult.select(comments.id, comments.features, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text, probability.alias(pos))
+    negResult = negModel.transform(posResult)
+    
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
