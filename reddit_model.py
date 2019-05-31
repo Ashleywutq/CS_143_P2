@@ -5,6 +5,12 @@ from pyspark.sql.functions import udf
 from pyspark.sql.types import ArrayType, StringType
 import cleantext
 
+def convert(text):
+    final =[]
+    for i in range(len(text)):
+        final += text[i].split()
+    return final  # list
+
 def main(context):
     """Main function takes a Spark SQL context."""
     # YOUR CODE HERE
@@ -32,6 +38,10 @@ def main(context):
     # context.registerDataFrameAsTable(data, "data")
     data = data.withColumn('cleaned_body', sanitize(data.body))
 
+    #Task 5
+    convert_udf = udf(convert,ArrayType(StringType()))
+    data = data.withColumn('cleaned_body', convert_udf(data.cleaned_body))
+#    print(data.limit(1).collect())
 
 
 if __name__ == "__main__":
