@@ -18,7 +18,9 @@ def convert(text):
     return final  # list
 
 def stripthree(text):
-    return text[3:]
+    if text[:3] =='t3_':
+        text = text[3:]
+    return text
 
 def main(context):
     """Main function takes a Spark SQL context."""
@@ -103,8 +105,8 @@ def main(context):
     stripthree_udf = udf(stripthree, StringType())
     comments_truc = comments.select(comments.created_utc, comments.link_id.alias('link_id'), comments.author_flair_text)
     submissions_truc = submissions.select(submissions.id,  submissions.title)
-    # data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.id,'inner')
-    print(comments_truc.limit(1).collect())
+    data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.id,'inner')
+#    print(comments_truc.limit(50).collect())
 
 
 if __name__ == "__main__":
