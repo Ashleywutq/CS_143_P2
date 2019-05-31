@@ -3,6 +3,7 @@ from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
 from pyspark.sql.functions import udf
 from pyspark.sql.types import ArrayType, StringType
+from pyspark.ml.feature import CountVectorizer
 import cleantext
 
 def convert(text):
@@ -41,7 +42,17 @@ def main(context):
     #Task 5
     convert_udf = udf(convert,ArrayType(StringType()))
     data = data.withColumn('cleaned_body', convert_udf(data.cleaned_body))
-#    print(data.limit(1).collect())
+
+    #Task 6A
+    cv = CountVectorizer(inputCol="cleaned_body", outputCol="features", binary = True, minDF=10.0)
+    model = cv.fit(data)
+
+    result = model.transform(data)
+    result.show(truncate=False)
+
+    #Task 6B
+    
+
 
 
 if __name__ == "__main__":
