@@ -11,7 +11,7 @@ def main(context):
     # Task 1 load data
     # comments = context.read.json("comments-minimal.json.bz2")
     # submissions = context.read.json("submissions.json.bz2")
-    # label = context.read.csv("labeled_data.csv")
+    # label = context.read.csv("labeled_data.csv", header = 'true')
 
     # comments.write.parquet("comments.parquet")
     # submissions.write.parquet("submissions.parquet")
@@ -22,8 +22,8 @@ def main(context):
     label = context.read.parquet("label.parquet")
     
     # Task 2 functional dependencies join two table
-#    data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
-    label.limit(5).collect()
+    data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
+ 
     
 
 
