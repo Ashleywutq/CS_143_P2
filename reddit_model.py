@@ -2,7 +2,7 @@ from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
 from pyspark.sql.functions import udf,expr
-from pyspark.sql.types import ArrayType, StringType
+from pyspark.sql.types import ArrayType, StringType,FloatType
 from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder,CrossValidatorModel
@@ -16,6 +16,9 @@ def convert(text):
     for i in range(len(text)):
         final += text[i].split()
     return final  # list
+def split(prob):
+    return prob[0]
+
 
 def main(context):
     """Main function takes a Spark SQL context."""
@@ -118,8 +121,16 @@ def main(context):
     posModel2 = CrossValidatorModel.load("project2/pos.model")
     negModel2 = CrossValidatorModel.load("project2/neg.model")
     posResult = posModel2.transform(data2)
-    posResult = posResult.withColumn('probability',expr("case when probability[1] > '0.2' then 1 else 0 end"))
-#    posResult = posModel2.transform(data2).withColumnRenamed('prediction', 'Positive').drop('rawPrediction','probability','cleaned_body')
+    split_udf = udf(split, FloatType())
+    posResult = posResult.withColumn('temp',split_udf(posResult.probability))
+    posResult = posResult.withColumn('prediction',expr("case when temp> '0.2'then 1 else 0 end")).drop('rawPrediction','temp','probability','cleaned_body')
+    print(posResult.limit(1).collect())
+#    posResult = posResult.withColumn('prediction', expr("case when split_udf(posResult.probability)> '0.2'then 1 else 0 end"))
+#    print(posResult.limit(1).collect())
+
+#    print(output2.limit(1).collect())
+#    posResult = posResult.withColumn('prediction',expr("case when split_udf(probability) > '0.2' then 1 else 0 end"))
+#    posResult = posModel2.transform(data2).withColumnRenamed( 'Positive').drop('rawPrediction','probability','cleaned_body')
 #    print(posResult.limit(1).collect())
 #    negResult = negModel2.transform(posResult).withColumnRenamed('prediction','Negative').drop('rawPrediction','probability','features')
 #    print(negResult.limit(5).collect())
@@ -127,6 +138,7 @@ def main(context):
 #    results = negResult.withColumn("pos_new", expr("case when pos[0] > '0.2' then 1 else 0 end"))
 #    results = results.withColumn("neg_new", expr("case when pos[1] = '0.25' then 1 else 0 end"))
 
+#Task 10
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
