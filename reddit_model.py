@@ -17,11 +17,6 @@ def convert(text):
         final += text[i].split()
     return final  # list
 
-def stripthree(text):
-    if text[:3] =='t3_':
-        text = text[3:]
-    return text
-
 def main(context):
     """Main function takes a Spark SQL context."""
     # YOUR CODE HERE
@@ -102,11 +97,12 @@ def main(context):
     # negModel.save("project2/neg.model")
 
     #task 8
-    stripthree_udf = udf(stripthree, StringType())
-    comments_truc = comments.select(comments.created_utc, comments.link_id.alias('link_id'), comments.author_flair_text)
+    comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).
+    alias('link_id'), comments.author_flair_text)
     submissions_truc = submissions.select(submissions.id,  submissions.title)
     data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.id,'inner')
-#    print(comments_truc.limit(50).collect())
+
+    #task 9
 
 
 if __name__ == "__main__":
