@@ -5,7 +5,7 @@ from pyspark.sql.functions import udf,expr
 from pyspark.sql.types import ArrayType, StringType
 from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
-from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
+from pyspark.ml.tuning import CrossValidator, ParamGridBuilder,CrossValidatorModel
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 
 
@@ -35,27 +35,27 @@ def main(context):
     submissions = context.read.parquet("submissions.parquet")
     label = context.read.parquet("label.parquet")
     
-    # # Task 2 functional dependencies join two table
-    # data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
+    # Task 2 functional dependencies join two table
+    data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
  
-    # #Task 4 
-    # sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
-    # # context.udf.register("sanitize", sanitize_udf)
-    # # context.registerDataFrameAsTable(data, "data")
-    # data = data.withColumn('cleaned_body', sanitize(data.body))
+     #Task 4
+    sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
+    # context.udf.register("sanitize", sanitize_udf)
+    # context.registerDataFrameAsTable(data, "data")
+    data = data.withColumn('cleaned_body', sanitize(data.body))
 
-    # #Task 5
-    # convert_udf = udf(convert,ArrayType(StringType()))
-    # data = data.withColumn('cleaned_body', convert_udf(data.cleaned_body))
+    #Task 5
+    convert_udf = udf(convert,ArrayType(StringType()))
+    data = data.withColumn('cleaned_body', convert_udf(data.cleaned_body))
 
-    # #Task 6A
-    # cv = CountVectorizer(inputCol="cleaned_body", outputCol="features", binary = True, minDF=10.0)
-    # model = cv.fit(data)
-    # data = model.transform(data)
-
-    # #Task 6B
-    # pos = data.withColumn("label", expr("case when labeldjt = '1' then 1 else 0 end"))
-    # neg = data.withColumn("label", expr("case when labeldjt = '-1' then 1 else 0 end"))
+    #Task 6A
+    cv = CountVectorizer(inputCol="cleaned_body", outputCol="features", binary = True, minDF=10.0)
+    model = cv.fit(data)
+    data = model.transform(data)
+        
+    #Task 6B
+    pos = data.withColumn("label", expr("case when labeldjt = '1' then 1 else 0 end"))
+    neg = data.withColumn("label", expr("case when labeldjt = '-1' then 1 else 0 end"))
 
     # #Task 7
     # # Initialize two logistic regression models.
@@ -103,25 +103,30 @@ def main(context):
 
     #task 9
     data2 = data2.sample(False, 0.2, None)
-    #remove some data 
+    #remove some data
     data2 = data2.filter("body not like '%/s%'").filter("body not like '&gt%'")
-    #Task 4 
+    #Task 4
     sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
     data2 = data2.withColumn('cleaned_body', sanitize(data2.body))
     #Task 5
     convert_udf = udf(convert,ArrayType(StringType()))
     data2 = data2.withColumn('cleaned_body', convert_udf(data2.cleaned_body))
     #Task 6A
-    cv = CountVectorizer(inputCol="cleaned_body", outputCol="features", binary = True, minDF=10.0)
-    model = cv.fit(data2)
+    
     data2 = model.transform(data2)
     #inferece
-    posModel2 = CrossValidator.load("project2/pos.model")
-    negModel2 = CrossValidator.load("project2/neg.model")
-    posResult = posModel.transform(data2)
-    posResult.select(comments.id, comments.features, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text, probability.alias(pos))
-    negResult = negModel.transform(posResult)
-    
+    posModel2 = CrossValidatorModel.load("project2/pos.model")
+    negModel2 = CrossValidatorModel.load("project2/neg.model")
+    posResult = posModel2.transform(data2)
+    posResult = posResult.withColumn('probability',expr("case when probability[1] > '0.2' then 1 else 0 end"))
+#    posResult = posModel2.transform(data2).withColumnRenamed('prediction', 'Positive').drop('rawPrediction','probability','cleaned_body')
+#    print(posResult.limit(1).collect())
+#    negResult = negModel2.transform(posResult).withColumnRenamed('prediction','Negative').drop('rawPrediction','probability','features')
+#    print(negResult.limit(5).collect())
+#    #Task 6B
+#    results = negResult.withColumn("pos_new", expr("case when pos[0] > '0.2' then 1 else 0 end"))
+#    results = results.withColumn("neg_new", expr("case when pos[1] = '0.25' then 1 else 0 end"))
+
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
