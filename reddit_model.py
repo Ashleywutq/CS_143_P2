@@ -1,9 +1,10 @@
 from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import udf,expr
 from pyspark.sql.types import ArrayType, StringType
 from pyspark.ml.feature import CountVectorizer
+
 import cleantext
 
 def convert(text):
@@ -51,7 +52,9 @@ def main(context):
     result.show(truncate=False)
 
     #Task 6B
-    
+    data = data.withColumn("positive", expr("case when labeldjt = '1' then 1 else 0 end"))
+    data = data.withColumn("negative", expr("case when labeldjt = '-1' then 1 else 0 end"))
+    print(data.limit(1).collect())
 
 
 
