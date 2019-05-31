@@ -1,7 +1,9 @@
 from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
-
+from pyspark.sql.functions import udf
+from pyspark.sql.types import ArrayType, StringType
+import cleantext
 
 def main(context):
     """Main function takes a Spark SQL context."""
@@ -24,8 +26,11 @@ def main(context):
     # Task 2 functional dependencies join two table
     data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
  
-    
-
+    #Task 4 
+    sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
+    # context.udf.register("sanitize", sanitize_udf)
+    # context.registerDataFrameAsTable(data, "data")
+    data = data.withColumn('cleaned_body', sanitize(data.body))
 
 
 
