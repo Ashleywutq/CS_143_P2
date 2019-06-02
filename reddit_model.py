@@ -139,6 +139,65 @@ def main(context):
 #    results = results.withColumn("neg_new", expr("case when pos[1] = '0.25' then 1 else 0 end"))
 
 #Task 10
+#    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
+    new_results = results.groupBy().agg(sum("Positive").alias("Positive"))
+    .withColumn("fraction", col("Positive") / sum("Positive").over())
+    .withColumn("pos_Percent", col("fraction") * 100 )
+    .drop("fraction")
+    new_results.groupBy().agg(sum("Negative").alias("Negative"))
+    .withColumn("fraction", col("Negative") / sum("Negative").over())
+    .withColumn("neg_Percent", col("fraction") * 100 )
+    .drop("fraction")
+
+    #   2. Compute the percentage of comments that were positive and
+    # the percentage of comments that were negative across all days.
+    # Check out from from_unixtime function.
+    new_results2=results.withColumn('date_again', func.from_unixtime('timestamp').cast(DateType()))
+    new_results2 = new_results2.groupBy('date_again').agg(sum("Positive").alias("Positive"))
+    .withColumn("fraction", col("Positive") / sum("Positive").over())
+    .withColumn("pos_Percent", col("fraction") * 100 )
+    .drop("fraction")
+    new_results2.groupBy('date_again').agg(sum("Negative").alias("Negative"))
+    .withColumn("fraction", col("Negative") / sum("Negative").over())
+    .withColumn("neg_Percent", col("fraction") * 100 )
+    .drop("fraction")
+
+    # 3.Compute the percentage of comments that were positive
+    # and the percentage of comments that were negative across all states.
+    # There is a Python list of US States here. Just copy and paste it.
+
+    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+              'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
+              'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
+              'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+              'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+              'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
+              'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+              'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+              'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    byState = results[results.author_flair_text.isin(
+                                                     states)].groupBy('author_flair_text')
+    new_results3 = byState.groupBy().agg(sum("Positive").alias("Positive"))
+    .withColumn("fraction", col("Positive") / sum("Positive").over())
+    .withColumn("pos_Percent", col("fraction") * 100 )
+    .drop("fraction")
+    new_results3 = new_results3.groupBy().agg(sum("Negative").alias("Negative"))
+    .withColumn("fraction", col("Negative") / sum("Negative").over())
+    .withColumn("neg_Percent", col("fraction") * 100 )
+    .drop("fraction")
+
+#   4. Compute the percentage of comments that were positive
+# and the percentage of comments that were negative by comment and story score, independently.
+# You will want to be careful about quotes. Check out the quoteAll option.
+
+
+
+
+#5. Any other dimensions you compute will receive extra credit
+# if they make sense based on the datayou have.
+
+
+
 
 if __name__ == "__main__":
     conf = SparkConf().setAppName("CS143 Project 2B")
