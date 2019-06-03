@@ -1,24 +1,21 @@
 from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import udf,expr
-from pyspark.sql.types import ArrayType, StringType,FloatType
+from pyspark.sql.functions import udf, expr
+from pyspark.sql.types import ArrayType, StringType, DoubleType
 from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder,CrossValidatorModel
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
-
-
+from pyspark.ml.linalg import DenseVector
 import cleantext
+import logging
 
 def convert(text):
     final =[]
     for i in range(len(text)):
         final += text[i].split()
-    return final  # list
-def split(prob):
-    return prob[0]
-
+    return final  
 
 def main(context):
     """Main function takes a Spark SQL context."""
@@ -41,7 +38,7 @@ def main(context):
     # Task 2 functional dependencies join two table
     data = label.join(comments, label.Input_id == comments.id,'inner').select(label.Input_id,comments.body,label.labeldjt)
  
-     #Task 4
+    #Task 4
     sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
     # context.udf.register("sanitize", sanitize_udf)
     # context.registerDataFrameAsTable(data, "data")
@@ -63,8 +60,8 @@ def main(context):
     # #Task 7
     # # Initialize two logistic regression models.
     # # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
-    # poslr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10)
-    # neglr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10)
+    # poslr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.2)
+    # neglr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.25)
     # # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
     # posEvaluator = BinaryClassificationEvaluator()
     # negEvaluator = BinaryClassificationEvaluator()
@@ -101,100 +98,89 @@ def main(context):
 
     #task 8
     comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text)
-    submissions_truc = submissions.select(submissions.id,  submissions.title)
-    data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.id,'inner')
+    submissions_truc = submissions.select(submissions.id.alias('sub_id'),  submissions.title)
+    data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.sub_id,'inner')
 
     #task 9
     data2 = data2.sample(False, 0.2, None)
     #remove some data
     data2 = data2.filter("body not like '%/s%'").filter("body not like '&gt%'")
     #Task 4
-    sanitize = udf(cleantext.sanitize, ArrayType(StringType()))
     data2 = data2.withColumn('cleaned_body', sanitize(data2.body))
     #Task 5
-    convert_udf = udf(convert,ArrayType(StringType()))
     data2 = data2.withColumn('cleaned_body', convert_udf(data2.cleaned_body))
     #Task 6A
-    
     data2 = model.transform(data2)
     #inferece
     posModel2 = CrossValidatorModel.load("project2/pos.model")
     negModel2 = CrossValidatorModel.load("project2/neg.model")
     posResult = posModel2.transform(data2)
-    split_udf = udf(split, FloatType())
-    posResult = posResult.withColumn('temp',split_udf(posResult.probability))
-    posResult = posResult.withColumn('prediction',expr("case when temp> '0.2'then 1 else 0 end")).drop('rawPrediction','temp','probability','cleaned_body')
-    print(posResult.limit(1).collect())
-#    posResult = posResult.withColumn('prediction', expr("case when split_udf(posResult.probability)> '0.2'then 1 else 0 end"))
-#    print(posResult.limit(1).collect())
+    posResult.limit(1).show()
+    posResult = posResult.withColumnRenamed('prediction', 'pos').drop('rawPrediction','probability')
+    negResult = negModel2.transform(posResult)
+    results = negResult.withColumnRenamed('prediction', 'neg').drop('rawPrediction','probability')
+    results.limit(1).show()
+    results.write.parquet("project2/results.parquet")
 
-#    print(output2.limit(1).collect())
-#    posResult = posResult.withColumn('prediction',expr("case when split_udf(probability) > '0.2' then 1 else 0 end"))
-#    posResult = posModel2.transform(data2).withColumnRenamed( 'Positive').drop('rawPrediction','probability','cleaned_body')
-#    print(posResult.limit(1).collect())
-#    negResult = negModel2.transform(posResult).withColumnRenamed('prediction','Negative').drop('rawPrediction','probability','features')
-#    print(negResult.limit(5).collect())
-#    #Task 6B
-#    results = negResult.withColumn("pos_new", expr("case when pos[0] > '0.2' then 1 else 0 end"))
-#    results = results.withColumn("neg_new", expr("case when pos[1] = '0.25' then 1 else 0 end"))
+    # Task 10
+    # results = context.read.parquet("project2/results.parquet")
+    # results.limit(1).show()
+    #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
+    # new_results = results.groupBy().agg(sum("Positive").alias("Positive"))
+    # .withColumn("fraction", col("Positive") / sum("Positive").over())
+    # .withColumn("pos_Percent", col("fraction") * 100 )
+    # .drop("fraction")
+    # new_results.groupBy().agg(sum("Negative").alias("Negative"))
+    # .withColumn("fraction", col("Negative") / sum("Negative").over())
+    # .withColumn("neg_Percent", col("fraction") * 100 )
+    # .drop("fraction")
 
-#Task 10
-#    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
-    new_results = results.groupBy().agg(sum("Positive").alias("Positive"))
-    .withColumn("fraction", col("Positive") / sum("Positive").over())
-    .withColumn("pos_Percent", col("fraction") * 100 )
-    .drop("fraction")
-    new_results.groupBy().agg(sum("Negative").alias("Negative"))
-    .withColumn("fraction", col("Negative") / sum("Negative").over())
-    .withColumn("neg_Percent", col("fraction") * 100 )
-    .drop("fraction")
+    # #   2. Compute the percentage of comments that were positive and
+    # # the percentage of comments that were negative across all days.
+    # # Check out from from_unixtime function.
+    # new_results2=results.withColumn('date_again', func.from_unixtime('timestamp').cast(DateType()))
+    # new_results2 = new_results2.groupBy('date_again').agg(sum("Positive").alias("Positive"))
+    # .withColumn("fraction", col("Positive") / sum("Positive").over())
+    # .withColumn("pos_Percent", col("fraction") * 100 )
+    # .drop("fraction")
+    # new_results2.groupBy('date_again').agg(sum("Negative").alias("Negative"))
+    # .withColumn("fraction", col("Negative") / sum("Negative").over())
+    # .withColumn("neg_Percent", col("fraction") * 100 )
+    # .drop("fraction")
 
-    #   2. Compute the percentage of comments that were positive and
-    # the percentage of comments that were negative across all days.
-    # Check out from from_unixtime function.
-    new_results2=results.withColumn('date_again', func.from_unixtime('timestamp').cast(DateType()))
-    new_results2 = new_results2.groupBy('date_again').agg(sum("Positive").alias("Positive"))
-    .withColumn("fraction", col("Positive") / sum("Positive").over())
-    .withColumn("pos_Percent", col("fraction") * 100 )
-    .drop("fraction")
-    new_results2.groupBy('date_again').agg(sum("Negative").alias("Negative"))
-    .withColumn("fraction", col("Negative") / sum("Negative").over())
-    .withColumn("neg_Percent", col("fraction") * 100 )
-    .drop("fraction")
+    # # 3.Compute the percentage of comments that were positive
+    # # and the percentage of comments that were negative across all states.
+    # # There is a Python list of US States here. Just copy and paste it.
 
-    # 3.Compute the percentage of comments that were positive
-    # and the percentage of comments that were negative across all states.
-    # There is a Python list of US States here. Just copy and paste it.
+    # states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+    #           'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
+    #           'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
+    #           'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+    #           'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+    #           'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
+    #           'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+    #           'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+    #           'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    # byState = results[results.author_flair_text.isin(
+    #                                                  states)].groupBy('author_flair_text')
+    # new_results3 = byState.groupBy().agg(sum("Positive").alias("Positive"))
+    # .withColumn("fraction", col("Positive") / sum("Positive").over())
+    # .withColumn("pos_Percent", col("fraction") * 100 )
+    # .drop("fraction")
+    # new_results3 = new_results3.groupBy().agg(sum("Negative").alias("Negative"))
+    # .withColumn("fraction", col("Negative") / sum("Negative").over())
+    # .withColumn("neg_Percent", col("fraction") * 100 )
+    # .drop("fraction")
 
-    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
-              'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
-              'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
-              'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
-              'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
-              'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
-              'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
-              'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
-              'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    byState = results[results.author_flair_text.isin(
-                                                     states)].groupBy('author_flair_text')
-    new_results3 = byState.groupBy().agg(sum("Positive").alias("Positive"))
-    .withColumn("fraction", col("Positive") / sum("Positive").over())
-    .withColumn("pos_Percent", col("fraction") * 100 )
-    .drop("fraction")
-    new_results3 = new_results3.groupBy().agg(sum("Negative").alias("Negative"))
-    .withColumn("fraction", col("Negative") / sum("Negative").over())
-    .withColumn("neg_Percent", col("fraction") * 100 )
-    .drop("fraction")
-
-#   4. Compute the percentage of comments that were positive
-# and the percentage of comments that were negative by comment and story score, independently.
-# You will want to be careful about quotes. Check out the quoteAll option.
+    # #   4. Compute the percentage of comments that were positive
+    # # and the percentage of comments that were negative by comment and story score, independently.
+    # # You will want to be careful about quotes. Check out the quoteAll option.
 
 
 
 
-#5. Any other dimensions you compute will receive extra credit
-# if they make sense based on the datayou have.
+    # #5. Any other dimensions you compute will receive extra credit
+    # # if they make sense based on the datayou have.
 
 
 
