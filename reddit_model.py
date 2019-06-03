@@ -115,11 +115,9 @@ def main(context):
     posModel2 = CrossValidatorModel.load("project2/pos.model")
     negModel2 = CrossValidatorModel.load("project2/neg.model")
     posResult = posModel2.transform(data2)
-    posResult.limit(1).show()
     posResult = posResult.withColumnRenamed('prediction', 'pos').drop('rawPrediction','probability')
     negResult = negModel2.transform(posResult)
     results = negResult.withColumnRenamed('prediction', 'neg').drop('rawPrediction','probability')
-    results.limit(1).show()
     results.write.parquet("project2/results.parquet")
 
     # Task 10
