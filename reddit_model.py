@@ -126,13 +126,13 @@ def main(context):
     #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
     q1 = results.select('pos','neg')
     q1 = q1.groupBy().avg('pos', 'neg')
-    q1.repartition(1).write.csv('q1.csv')
+    q1.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q1.csv')
 
     # #   2. Compute the percentage of comments that were positive and
     # # the percentage of comments that were negative across all days.
     # # Check out from from_unixtime function.
     q2 = results.select(to_date(results.created_utc.cast('timestamp')).alias('date'),results.pos,results.neg).groupBy('date').avg('pos','neg')
-    q2.repartition(1).write.csv('q2.csv')
+    q2.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q2.csv')
 
     # # 3.Compute the percentage of comments that were positive
     # # and the percentage of comments that were negative across all states.
@@ -147,15 +147,15 @@ def main(context):
                'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
                'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
     q3 = results[results.author_flair_text.isin(states)].groupBy('author_flair_text').avg('pos','neg')
-    q3.repartition(1).write.csv('q3.csv')
+    q3.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q3.csv')
     
     # #   4. Compute the percentage of comments that were positive
     # # and the percentage of comments that were negative by comment and story score, independently.
     # # You will want to be careful about quotes. Check out the quoteAll option.
     q4_c = results.groupBy('cscore').avg('pos','neg')
     q4_s = results.groupBy('sscore').avg('pos','neg')
-    q4_c.repartition(1).write.csv('q4_c.csv')
-    q4_s.repartition(1).write.csv('q4_s.csv')
+    q4_c.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q4_c.csv')
+    q4_s.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q4_s.csv')
 
     # #5. Any other dimensions you compute will receive extra credit
     # # if they make sense based on the datayou have.
