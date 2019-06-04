@@ -1,7 +1,7 @@
 from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import udf, expr
+from pyspark.sql.functions import udf, expr,count
 from pyspark.sql.types import ArrayType, StringType, DoubleType
 from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
@@ -58,50 +58,50 @@ def main(context):
     neg = data.withColumn("label", expr("case when labeldjt = '-1' then 1 else 0 end"))
 
     # #Task 7
-    # # Initialize two logistic regression models.
-    # # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
-    # poslr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.2)
-    # neglr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.25)
-    # # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
-    # posEvaluator = BinaryClassificationEvaluator()
-    # negEvaluator = BinaryClassificationEvaluator()
-    # # There are a few parameters associated with logistic regression. We do not know what they are a priori.
-    # # We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
-    # # We will assume the parameter is 1.0. Grid search takes forever.
-    # posParamGrid = ParamGridBuilder().addGrid(poslr.regParam, [1.0]).build()
-    # negParamGrid = ParamGridBuilder().addGrid(neglr.regParam, [1.0]).build()
-    # # We initialize a 5 fold cross-validation pipeline.
-    # posCrossval = CrossValidator(
-    #     estimator=poslr,
-    #     evaluator=posEvaluator,
-    #     estimatorParamMaps=posParamGrid,
-    #     numFolds=5)
-    # negCrossval = CrossValidator(
-    #     estimator=neglr,
-    #     evaluator=negEvaluator,
-    #     estimatorParamMaps=negParamGrid,
-    #     numFolds=5)
-    # # Although crossvalidation creates its own train/test sets for
-    # # tuning, we still need a labeled test set, because it is not
-    # # accessible from the crossvalidator (argh!)
-    # # Split the data 50/50
-    # posTrain, posTest = pos.randomSplit([0.5, 0.5])
-    # negTrain, negTest = neg.randomSplit([0.5, 0.5])
-    # # Train the models
-    # print("Training positive classifier...")
-    # posModel = posCrossval.fit(posTrain)
-    # print("Training negative classifier...")
-    # negModel = negCrossval.fit(negTrain)
-    # # Once we train the models, we don't want to do it again. We can save the models and load them again later.
-    # posModel.save("project2/pos.model")
-    # negModel.save("project2/neg.model")
+#    # Initialize two logistic regression models.
+#    # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
+#    poslr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.2)
+#    neglr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.25)
+#     # This is a binary classifier so we need an evaluator that knows how to deal with binary classifiers.
+#    posEvaluator = BinaryClassificationEvaluator()
+#    negEvaluator = BinaryClassificationEvaluator()
+#    # There are a few parameters associated with logistic regression. We do not know what they are a priori.
+#    # We do a grid search to find the best parameters. We can replace [1.0] with a list of values to try.
+#    # We will assume the parameter is 1.0. Grid search takes forever.
+#    posParamGrid = ParamGridBuilder().addGrid(poslr.regParam, [1.0]).build()
+#    negParamGrid = ParamGridBuilder().addGrid(neglr.regParam, [1.0]).build()
+#    # We initialize a 5 fold cross-validation pipeline.
+#    posCrossval = CrossValidator(
+#         estimator=poslr,
+#         evaluator=posEvaluator,
+#         estimatorParamMaps=posParamGrid,
+#         numFolds=5)
+#    negCrossval = CrossValidator(
+#         estimator=neglr,
+#         evaluator=negEvaluator,
+#         estimatorParamMaps=negParamGrid,
+#         numFolds=5)
+#    # Although crossvalidation creates its own train/test sets for
+#    # tuning, we still need a labeled test set, because it is not
+#    # accessible from the crossvalidator (argh!)
+#    # Split the data 50/50
+#    posTrain, posTest = pos.randomSplit([0.5, 0.5])
+#    negTrain, negTest = neg.randomSplit([0.5, 0.5])
+#    # Train the models
+#    print("Training positive classifier...")
+#    posModel = posCrossval.fit(posTrain)
+#    print("Training negative classifier...")
+#    negModel = negCrossval.fit(negTrain)
+#    # Once we train the models, we don't want to do it again. We can save the models and load them again later.
+#    posModel.save("project2/pos.model")
+#    negModel.save("project2/neg.model")
 
     #task 8
     comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text)
     submissions_truc = submissions.select(submissions.id.alias('sub_id'),  submissions.title)
     data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.sub_id,'inner')
-
-    #task 9
+#
+#    #task 9
     data2 = data2.sample(False, 0.2, None)
     #remove some data
     data2 = data2.filter("body not like '%/s%'").filter("body not like '&gt%'")
@@ -118,21 +118,16 @@ def main(context):
     posResult = posResult.withColumnRenamed('prediction', 'pos').drop('rawPrediction','probability')
     negResult = negModel2.transform(posResult)
     results = negResult.withColumnRenamed('prediction', 'neg').drop('rawPrediction','probability')
-    results.write.parquet("project2/results.parquet")
+#    results.write.parquet("project2/results.parquet")
 
     # Task 10
     # results = context.read.parquet("project2/results.parquet")
     # results.limit(1).show()
     #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
-    # new_results = results.groupBy().agg(sum("Positive").alias("Positive"))
-    # .withColumn("fraction", col("Positive") / sum("Positive").over())
-    # .withColumn("pos_Percent", col("fraction") * 100 )
-    # .drop("fraction")
-    # new_results.groupBy().agg(sum("Negative").alias("Negative"))
-    # .withColumn("fraction", col("Negative") / sum("Negative").over())
-    # .withColumn("neg_Percent", col("fraction") * 100 )
-    # .drop("fraction")
-
+    new_results = results.agg(count("*").alias("total"),
+                               sum("pos").alias("pos_sum"),
+                               mean("pos_sum").multiply(100).cast("integer").alias("percentage"))
+    results.limit(1).show()
     # #   2. Compute the percentage of comments that were positive and
     # # the percentage of comments that were negative across all days.
     # # Check out from from_unixtime function.
