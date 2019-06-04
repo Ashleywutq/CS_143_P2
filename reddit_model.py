@@ -121,46 +121,49 @@ def main(context):
     results = negResult.withColumnRenamed('prediction', 'neg').drop('rawPrediction','probability')
 #   results.write.parquet("project2/results.parquet")
 
-    # Task 10
-    # results = context.read.parquet("project2/results.parquet")
-    #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
-    q1 = results.select('pos','neg')
-    q1 = q1.groupBy().avg('pos', 'neg')
-    q1.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q1.csv')
+    # # Task 10
+    # # results = context.read.parquet("project2/results.parquet")
+    # #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
+    # q1 = results.select('pos','neg')
+    # q1 = q1.groupBy().avg('pos', 'neg')
+    # q1.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q1.csv')
 
-    # #   2. Compute the percentage of comments that were positive and
-    # # the percentage of comments that were negative across all days.
-    # # Check out from from_unixtime function.
-    q2 = results.select(to_date(results.created_utc.cast('timestamp')).alias('date'),results.pos,results.neg).groupBy('date').avg('pos','neg')
-    q2.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q2.csv')
+    # # #   2. Compute the percentage of comments that were positive and
+    # # # the percentage of comments that were negative across all days.
+    # # # Check out from from_unixtime function.
+    # q2 = results.select(to_date(results.created_utc.cast('timestamp')).alias('date'),results.pos,results.neg).groupBy('date').avg('pos','neg')
+    # q2.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q2.csv')
 
-    # # 3.Compute the percentage of comments that were positive
-    # # and the percentage of comments that were negative across all states.
-    # # There is a Python list of US States here. Just copy and paste it.
-    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
-               'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
-               'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
-               'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
-               'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
-               'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
-               'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
-               'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
-               'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    q3 = results[results.author_flair_text.isin(states)].groupBy('author_flair_text').avg('pos','neg')
-    q3.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q3.csv')
+    # # # 3.Compute the percentage of comments that were positive
+    # # # and the percentage of comments that were negative across all states.
+    # # # There is a Python list of US States here. Just copy and paste it.
+    # states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+    #            'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
+    #            'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
+    #            'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+    #            'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+    #            'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
+    #            'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+    #            'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+    #            'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    # q3 = results[results.author_flair_text.isin(states)].groupBy('author_flair_text').avg('pos','neg')
+    # q3.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q3.csv')
     
-    # #   4. Compute the percentage of comments that were positive
-    # # and the percentage of comments that were negative by comment and story score, independently.
-    # # You will want to be careful about quotes. Check out the quoteAll option.
-    q4_c = results.groupBy('cscore').avg('pos','neg')
-    q4_s = results.groupBy('sscore').avg('pos','neg')
-    q4_c.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q4_c.csv')
-    q4_s.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q4_s.csv')
+    # # #   4. Compute the percentage of comments that were positive
+    # # # and the percentage of comments that were negative by comment and story score, independently.
+    # # # You will want to be careful about quotes. Check out the quoteAll option.
+    # q4_c = results.groupBy('cscore').avg('pos','neg')
+    # q4_s = results.groupBy('sscore').avg('pos','neg')
+    # q4_c.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q4_c.csv')
+    # q4_s.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('q4_s.csv')
 
-    # #5. Any other dimensions you compute will receive extra credit
-    # # if they make sense based on the datayou have.
+    # # #5. Any other dimensions you compute will receive extra credit
+    # # # if they make sense based on the datayou have.
 
-
+    # final 4: Give a list of the top 10 positive stories (have the highest percentage of positive comments) and the top 10 negative stories (have the highest percentage of negative comments).
+    final4 = results.groupBy('title').agg(avg('pos').alias('avgpos'), avg('neg').alias('avgneg'))
+    final4.orderBy('avgpos', ascending=0).limit(10).show(truncate=False)
+    final4.orderBy('avgneg', ascending=0).limit(10).show(truncate=False)
 
 
 if __name__ == "__main__":
