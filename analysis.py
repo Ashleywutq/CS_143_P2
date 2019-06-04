@@ -177,7 +177,7 @@ ax1 = fig.add_subplot(111)
 
 ax1.scatter(story['sscore'], story['avg(pos)'], s=10, c='b', marker="s", label='Positive')
 ax1.scatter(story['sscore'], story['avg(neg)'], s=10, c='r', marker="o", label='Negative')
-plt.legend(loc='lower right');
+plt.legend(loc='lower right')
 
 plt.xlabel('President Trump Sentiment by Submission Score')
 plt.ylabel("Percent Sentiment")
