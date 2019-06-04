@@ -1,8 +1,8 @@
 from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import udf, expr,count
-from pyspark.sql.types import ArrayType, StringType, DoubleType
+from pyspark.sql.functions import udf, expr,count,to_date,col,from_unixtime
+from pyspark.sql.types import ArrayType, StringType, DoubleType,DateType
 from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder,CrossValidatorModel
@@ -97,9 +97,10 @@ def main(context):
 #    negModel.save("project2/neg.model")
 
     #task 8
-    comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text)
-    submissions_truc = submissions.select(submissions.id.alias('sub_id'),  submissions.title)
+    comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text,comments.score.alias('cscore'))
+    submissions_truc = submissions.select(submissions.id.alias('sub_id'),  submissions.title,submissions.score.alias('sscore'))
     data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.sub_id,'inner')
+    dataw.explain()
 #
 #    #task 9
     data2 = data2.sample(False, 0.2, None)
@@ -124,53 +125,35 @@ def main(context):
     # results = context.read.parquet("project2/results.parquet")
     # results.limit(1).show()
     #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
-    new_results = results.agg(count("*").alias("total"),
-                               sum("pos").alias("pos_sum"),
-                               mean("pos_sum").multiply(100).cast("integer").alias("percentage"))
-    results.limit(1).show()
+
     # #   2. Compute the percentage of comments that were positive and
     # # the percentage of comments that were negative across all days.
     # # Check out from from_unixtime function.
-    # new_results2=results.withColumn('date_again', func.from_unixtime('timestamp').cast(DateType()))
-    # new_results2 = new_results2.groupBy('date_again').agg(sum("Positive").alias("Positive"))
-    # .withColumn("fraction", col("Positive") / sum("Positive").over())
-    # .withColumn("pos_Percent", col("fraction") * 100 )
-    # .drop("fraction")
-    # new_results2.groupBy('date_again').agg(sum("Negative").alias("Negative"))
-    # .withColumn("fraction", col("Negative") / sum("Negative").over())
-    # .withColumn("neg_Percent", col("fraction") * 100 )
-    # .drop("fraction")
+    q2 = results.select(to_date(results.created_utc.cast('timestamp')).alias('date'),results.pos,results.neg).groupBy('date').avg('pos','neg')
+    q2.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('time_data.csv')
 
     # # 3.Compute the percentage of comments that were positive
     # # and the percentage of comments that were negative across all states.
     # # There is a Python list of US States here. Just copy and paste it.
 
-    # states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
-    #           'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
-    #           'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
-    #           'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
-    #           'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
-    #           'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
-    #           'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
-    #           'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
-    #           'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    # byState = results[results.author_flair_text.isin(
-    #                                                  states)].groupBy('author_flair_text')
-    # new_results3 = byState.groupBy().agg(sum("Positive").alias("Positive"))
-    # .withColumn("fraction", col("Positive") / sum("Positive").over())
-    # .withColumn("pos_Percent", col("fraction") * 100 )
-    # .drop("fraction")
-    # new_results3 = new_results3.groupBy().agg(sum("Negative").alias("Negative"))
-    # .withColumn("fraction", col("Negative") / sum("Negative").over())
-    # .withColumn("neg_Percent", col("fraction") * 100 )
-    # .drop("fraction")
-
+    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+               'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
+               'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
+               'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+               'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+               'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
+               'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+               'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+               'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    q3 = results[results.author_flair_text.isin(states)].groupBy('author_flair_text').avg('pos','neg')
+    q3.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('state_data.csv')
     # #   4. Compute the percentage of comments that were positive
     # # and the percentage of comments that were negative by comment and story score, independently.
     # # You will want to be careful about quotes. Check out the quoteAll option.
-
-
-
+    q4_c = results.groupBy('cscore').avg('pos','neg')
+    q4_s = results.groupBy('sscore').avg('pos','neg')
+    q4_c.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('comments_score.csv')
+    q4_s.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('story_score.csv')
 
     # #5. Any other dimensions you compute will receive extra credit
     # # if they make sense based on the datayou have.
