@@ -1,9 +1,13 @@
+#TASK 2
+
 QUESTION 1: Take a look at labeled_data.csv. Write the functional dependencies implied by the data.
 Input_id -> labeled, labelgop,labeldjt
 
-
- 
 QUESTION 2: Take a look at the schema for comments. Forget BCNF and 3NF. Does the data frame look normalized? In other words, is the data frame free of redundancies that might affect insert/update integrity? If not, how would we decompose it? Why do you believe the collector of the data stored it in this way?
-
 it does not look like it's normalized since subreddit_id -> subreddit. To decompose it, we would remove the subreddit column from the comments table and create another table with subreddit_id and subreddit. It is easier for users to access the data. 
 
+#TASk 10
+
+QUESTION 1: 
+avg(pos)	avg(neg)
+0.395100219911059	0.891226708930468

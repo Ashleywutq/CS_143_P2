@@ -1,7 +1,7 @@
 from __future__ import print_function
 from pyspark import SparkConf, SparkContext
 from pyspark.sql import SQLContext
-from pyspark.sql.functions import udf, expr,count,to_date,col,from_unixtime
+from pyspark.sql.functions import udf, expr,count,to_date,col,from_unixtime, avg
 from pyspark.sql.types import ArrayType, StringType, DoubleType,DateType
 from pyspark.ml.feature import CountVectorizer
 from pyspark.ml.classification import LogisticRegression
@@ -57,7 +57,7 @@ def main(context):
     pos = data.withColumn("label", expr("case when labeldjt = '1' then 1 else 0 end"))
     neg = data.withColumn("label", expr("case when labeldjt = '-1' then 1 else 0 end"))
 
-    # #Task 7
+#    # Task 7
 #    # Initialize two logistic regression models.
 #    # Replace labelCol with the column containing the label, and featuresCol with the column containing the features.
 #    poslr = LogisticRegression(labelCol='label', featuresCol="features", maxIter=10).setThreshold(0.2)
@@ -100,9 +100,9 @@ def main(context):
     comments_truc = comments.select(comments.id, comments.body, comments.created_utc, comments.link_id.substr(4,12).alias('link_id'), comments.author_flair_text,comments.score.alias('cscore'))
     submissions_truc = submissions.select(submissions.id.alias('sub_id'),  submissions.title,submissions.score.alias('sscore'))
     data2 = comments_truc.join(submissions_truc, comments_truc.link_id == submissions_truc.sub_id,'inner')
-    dataw.explain()
-#
-#    #task 9
+    # data2.explain()
+
+    #task 9
     data2 = data2.sample(False, 0.2, None)
     #remove some data
     data2 = data2.filter("body not like '%/s%'").filter("body not like '&gt%'")
@@ -119,34 +119,37 @@ def main(context):
     posResult = posResult.withColumnRenamed('prediction', 'pos').drop('rawPrediction','probability')
     negResult = negModel2.transform(posResult)
     results = negResult.withColumnRenamed('prediction', 'neg').drop('rawPrediction','probability')
-#    results.write.parquet("project2/results.parquet")
+#   results.write.parquet("project2/results.parquet")
 
     # Task 10
     # results = context.read.parquet("project2/results.parquet")
-    # results.limit(1).show()
     #    1. Compute the percentage of comments that were positive and the percentage of comments that were negative across all submissions/posts. You will want to do this in Spark.
+    # q1 = results.select('pos','neg')
+    # q1 = q1.groupBy().avg('pos', 'neg')
+    # q1.repartition(1).write.format("com.databricks.spark.csv").option(
+    #     "header", "true").save('qx.csv')
 
     # #   2. Compute the percentage of comments that were positive and
     # # the percentage of comments that were negative across all days.
     # # Check out from from_unixtime function.
-    q2 = results.select(to_date(results.created_utc.cast('timestamp')).alias('date'),results.pos,results.neg).groupBy('date').avg('pos','neg')
-    q2.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('time_data.csv')
+    # q2 = results.select(to_date(results.created_utc.cast('timestamp')).alias('date'),results.pos,results.neg).groupBy('date').avg('pos','neg')
+    # q2.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('time_data.csv')
 
     # # 3.Compute the percentage of comments that were positive
     # # and the percentage of comments that were negative across all states.
     # # There is a Python list of US States here. Just copy and paste it.
-
-    states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
-               'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
-               'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
-               'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
-               'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
-               'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
-               'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
-               'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
-               'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
-    q3 = results[results.author_flair_text.isin(states)].groupBy('author_flair_text').avg('pos','neg')
-    q3.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('state_data.csv')
+    # states = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California',
+    #            'Colorado', 'Connecticut', 'Delaware', 'District of Columbia', 'Florida',
+    #            'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas',
+    #            'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan',
+    #            'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+    #            'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina',
+    #            'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island',
+    #            'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+    #            'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming']
+    # q3 = results[results.author_flair_text.isin(states)].groupBy('author_flair_text').avg('pos','neg')
+    # q3.repartition(1).write.format("com.databricks.spark.csv").option("header", "true").save('state_data.csv')
+    
     # #   4. Compute the percentage of comments that were positive
     # # and the percentage of comments that were negative by comment and story score, independently.
     # # You will want to be careful about quotes. Check out the quoteAll option.
